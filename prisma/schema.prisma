@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Person {
+  id             String          @id @default(cuid())
+  surname        String
+  otherNames     String
+  gender         String
+  email          String          @unique
+  birthYear      Int?
+  birthMonth     Int
+  birthDay       Int
+  role           String
+  rank           String?
+  department     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  birthdayEmails BirthdayEmail[]
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  body        String
+  isActive    Boolean  @default(false)
+  isDefault   Boolean  @default(false)
+  imageUrl    String?
+  attachments Json     @default("[]")
+  fontStyle   String   @default("Arial")
+  fontSize    String   @default("16px")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BirthdayEmail {
+  id        String    @id @default(cuid())
+  personId  String
+  status    String? // 'sent', 'opened', 'replied', 'failed'
+  subject   String?
+  error     String?
+  openedAt  DateTime?
+  repliedAt DateTime?
+  sentAt    DateTime  @default(now())
+  person    Person    @relation(fields: [personId], references: [id])
+}
