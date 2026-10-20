@@ -95,13 +95,13 @@ function PeopleTable({
                     <TableCell className="font-bold text-[#003087]">{person.surname}</TableCell>
                     <TableCell className="font-medium">{person.otherNames}</TableCell>
                     <TableCell>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 capitalize">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700 capitalize">
                         {person.gender?.toLowerCase()}
                       </span>
                     </TableCell>
                     <TableCell>{person.email}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
                         {person.role}
                       </span>
                     </TableCell>
@@ -151,7 +151,7 @@ function PeopleTable({
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 {!isStaff && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-center ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-center ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
                     {person.role}
                   </span>
                 )}
@@ -161,7 +161,7 @@ function PeopleTable({
                   </span>
                 )}
                 {!isStaff && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 capitalize">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 capitalize">
                     {person.gender?.toLowerCase()}
                   </span>
                 )}
@@ -182,7 +182,7 @@ function PeopleTable({
                   {person.BirthdayEmail && person.BirthdayEmail.length > 0 ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-[10px] text-gray-400 font-bold">{new Date(person.BirthdayEmail[0].sentAt).toLocaleDateString()}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${person.BirthdayEmail[0].status === 'replied' ? 'bg-purple-100 text-purple-700' :
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${person.BirthdayEmail[0].status === 'replied' ? 'bg-purple-100 text-purple-700' :
                         person.BirthdayEmail[0].status === 'opened' ? 'bg-blue-100 text-blue-700' :
                         person.BirthdayEmail[0].status === 'sent' ? 'bg-green-100 text-green-700' :
                         'bg-red-100 text-red-700'
@@ -240,7 +240,7 @@ function renderEmailStatus(person: any) {
     const sorted = [...person.BirthdayEmail].sort((a: any, b: any) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
     return (
       <div className="flex flex-col gap-0.5">
-        <span className={`w-fit px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+        <span className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
           sorted[0].status === 'replied' ? 'bg-purple-100 text-purple-700' :
           sorted[0].status === 'opened' ? 'bg-blue-100 text-blue-700' :
           sorted[0].status === 'sent' ? 'bg-green-100 text-green-700' :

@@ -30,16 +30,23 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseAdmin
       .from('Person')
-      .select('*, BirthdayEmail(status, sentAt)', { count: 'exact' })
+      .select('*')
+
+    let countQuery = supabaseAdmin
+      .from('Person')
+      .select('*', { count: 'estimated', head: true })
 
     // Filtering
     if (role !== 'ALL') {
       query = query.eq('role', role)
+      countQuery = countQuery.eq('role', role)
     }
 
     if (search) {
       const s = `%${search}%`
-      query = query.or(`surname.ilike.${s},otherNames.ilike.${s},email.ilike.${s},rank.ilike.${s}`)
+      const orString = `surname.ilike.${s},otherNames.ilike.${s},email.ilike.${s},rank.ilike.${s}`
+      query = query.or(orString)
+      countQuery = countQuery.or(orString)
     }
 
     // Sorting
@@ -70,15 +77,38 @@ export async function GET(request: NextRequest) {
       result = await query.range(from, to)
     }
     
-    const { data, count, error } = result
+    const countResult = await countQuery
+
+    const { data: peopleData, error } = result
+    const count = countResult.count
 
     if (error) {
       console.error('Failed to fetch people:', error)
       return NextResponse.json({ error: 'Failed to fetch people' }, { status: 500 })
     }
 
+    let enrichedPeople = peopleData || []
+    
+    // Fetch BirthdayEmails separately to avoid PostgREST join timeouts on unindexed foreign keys
+    if (enrichedPeople.length > 0) {
+      const personIds = enrichedPeople.map((p: any) => p.id)
+      const { data: emailsData, error: emailsError } = await supabaseAdmin
+        .from('BirthdayEmail')
+        .select('personId, status, sentAt')
+        .in('personId', personIds)
+
+      if (!emailsError && emailsData) {
+        enrichedPeople = enrichedPeople.map((p: any) => {
+          const emails = emailsData.filter((e: any) => e.personId === p.id)
+          return { ...p, BirthdayEmail: emails }
+        })
+      } else {
+         enrichedPeople = enrichedPeople.map((p: any) => ({ ...p, BirthdayEmail: [] }))
+      }
+    }
+
     return NextResponse.json({
-      people: data || [],
+      people: enrichedPeople,
       total: count || 0,
       page,
       pageSize
@@ -137,7 +167,7 @@ export async function POST(request: NextRequest) {
 
       // 1. Deduplicate within the file itself (case-insensitive)
       const seenEmails = new Set<string>()
-      const deduped = validated.filter(p => {
+      const deduped = validated.filter((p: any) => {
         const email = p.email.toLowerCase()
         if (seenEmails.has(email)) return false
         seenEmails.add(email)
@@ -147,7 +177,7 @@ export async function POST(request: NextRequest) {
       const internalDupes = validated.length - deduped.length
 
       // 2. Check for duplicates already in the database
-      const emails = deduped.map(p => p.email)
+      const emails = deduped.map((p: any) => p.email)
       const existingEmails = new Set<string>()
       const DUPLICATE_CHUNK_SIZE = 1000
 
@@ -168,7 +198,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const peopleToInsert = deduped.filter(p => !existingEmails.has(p.email))
+      const peopleToInsert = deduped.filter((p: any) => !existingEmails.has(p.email))
       const skippedCount = existingEmails.size + internalDupes
 
       try {

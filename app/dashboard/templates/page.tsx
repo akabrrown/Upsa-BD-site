@@ -183,7 +183,7 @@ export default function TemplatesPage() {
                                 Create New Template
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="w-[95vw] sm:max-w-[900px] rounded-[2.5rem] p-6 sm:p-10 max-h-[95vh] overflow-y-auto border-0 shadow-2xl">
+                        <DialogContent className="w-[95vw] sm:max-w-[900px] rounded-2xl p-6 sm:p-10 max-h-[95vh] overflow-y-auto border-0 shadow-2xl">
                             <DialogHeader className="text-left mb-8">
                                 <DialogTitle className="text-2xl sm:text-3xl font-black text-[#003087]">Craft Your Message</DialogTitle>
                                 <DialogDescription className="text-gray-500 font-medium mt-1">
@@ -225,12 +225,9 @@ export default function TemplatesPage() {
                                             onAttachmentsChange={(files) => setForm({ ...form, attachments: files })}
                                         />
                                         {isAiGenerating && (
-                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] rounded-2xl flex items-center justify-center z-20">
+                                            <div className="absolute inset-0 bg-white/90 rounded-2xl flex items-center justify-center z-20">
                                                 <div className="flex flex-col items-center gap-3">
-                                                    <div className="bg-[#003087] p-3 rounded-2xl shadow-xl animate-bounce">
-                                                        <Sparkles className="w-6 h-6 text-[#FFD700]" />
-                                                    </div>
-                                                    <p className="text-[#003087] font-black text-sm tracking-widest uppercase animate-pulse">AI is writing...</p>
+                                                    <p className="text-[#003087] font-black text-sm tracking-widest uppercase">Generating content...</p>
                                                 </div>
                                             </div>
                                         )}
@@ -258,7 +255,7 @@ export default function TemplatesPage() {
 
                 {/* Edit Dialog */}
                 <Dialog open={!!editTemplate} onOpenChange={(open) => { if (!open) setEditTemplate(null) }}>
-                    <DialogContent className="w-[95vw] sm:max-w-[900px] rounded-[2.5rem] p-6 sm:p-10 max-h-[95vh] overflow-y-auto border-0 shadow-2xl">
+                    <DialogContent className="w-[95vw] sm:max-w-[900px] rounded-2xl p-6 sm:p-10 max-h-[95vh] overflow-y-auto border border-gray-100 shadow-2xl">
                         <DialogHeader className="text-left mb-8">
                             <DialogTitle className="text-2xl sm:text-3xl font-black text-[#003087]">Refine Template</DialogTitle>
                             <DialogDescription className="text-gray-500 font-medium mt-1">
@@ -290,12 +287,9 @@ export default function TemplatesPage() {
                                         onAttachmentsChange={(files) => setForm({ ...form, attachments: files })}
                                     />
                                     {isAiGenerating && (
-                                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] rounded-2xl flex items-center justify-center z-20">
+                                        <div className="absolute inset-0 bg-white/90 rounded-2xl flex items-center justify-center z-20">
                                             <div className="flex flex-col items-center gap-3">
-                                                <div className="bg-[#003087] p-3 rounded-2xl shadow-xl animate-bounce">
-                                                    <Sparkles className="w-6 h-6 text-[#FFD700]" />
-                                                </div>
-                                                <p className="text-[#003087] font-black text-sm tracking-widest uppercase animate-pulse">AI is writing...</p>
+                                                <p className="text-[#003087] font-black text-sm tracking-widest uppercase">Generating content...</p>
                                             </div>
                                         </div>
                                     )}
@@ -311,7 +305,7 @@ export default function TemplatesPage() {
 
                 {/* Preview Dialog */}
                 <Dialog open={!!previewTemplate} onOpenChange={(open) => { if (!open) setPreviewTemplate(null) }}>
-                    <DialogContent className="w-[95vw] sm:max-w-[650px] rounded-[3rem] p-0 overflow-hidden shadow-[0_35px_60px_-15px_rgba(0,48,135,0.3)] border-0">
+                    <DialogContent className="w-[95vw] sm:max-w-[650px] rounded-2xl p-0 overflow-hidden shadow-2xl border border-gray-100">
                         <DialogTitle className="sr-only">Template Preview</DialogTitle>
                         <DialogDescription className="sr-only">Live render of the email template.</DialogDescription>
                         <div className="bg-gray-50 px-8 py-5 border-b border-gray-200 flex items-center justify-between">
@@ -345,8 +339,6 @@ export default function TemplatesPage() {
                                     </div>
                                 </div>
                                 <div className="bg-[#003087] p-12 text-center relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 blur-2xl group-hover:scale-110 transition-transform duration-1000" />
-                                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#FFD700]/10 rounded-full -ml-16 -mb-16 blur-2xl" />
                                     <div className="text-[#FFD700] text-3xl font-black relative z-10 transition-all duration-500 hover:tracking-wider">UPSA</div>
                                     <div className="text-white/70 font-black uppercase tracking-[0.3em] mt-1 text-[10px] relative z-10">Celebrating You</div>
                                     <div className="mt-8 relative z-10">
@@ -397,13 +389,13 @@ export default function TemplatesPage() {
                 {loading ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="h-80 bg-white rounded-[3rem] border border-gray-100 animate-pulse shadow-sm" />
+                            <div key={i} className="h-80 bg-white rounded-2xl border border-gray-100 animate-pulse shadow-sm" />
                         ))}
                     </div>
                 ) : templates.length === 0 ? (
-                    <div className="text-center py-32 bg-white rounded-[4rem] border border-gray-100 shadow-2xl relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-b from-[#003087]/[0.02] to-transparent" />
-                        <div className="bg-[#003087] w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-[#003087]/30 group-hover:rotate-12 transition-transform duration-500 relative z-10">
+                    <div className="text-center py-32 bg-white rounded-2xl border border-gray-100 shadow-xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gray-50/50" />
+                        <div className="bg-[#003087] w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-8 shadow-xl relative z-10">
                             <Mail className="w-10 h-10 text-white" />
                         </div>
                         <div className="text-[#003087] text-3xl font-black relative z-10 tracking-tight">Your Template Library is Empty</div>
@@ -420,20 +412,17 @@ export default function TemplatesPage() {
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {templates.map((template: any) => (
-                            <Card key={template.id} className={`border-0 shadow-xl transition-all duration-700 rounded-[3.5rem] overflow-hidden bg-white group flex flex-col relative ${template.isActive ? 'ring-4 ring-[#003087] shadow-[0_45px_100px_-20px_rgba(0,48,135,0.25)]' : 'hover:shadow-[0_45px_100px_-20px_rgba(0,48,135,0.15)]'}`}>
+                            <Card key={template.id} className={`border border-gray-100 shadow-sm transition-all duration-300 rounded-2xl overflow-hidden bg-white group flex flex-col relative ${template.isActive ? 'ring-2 ring-[#003087] shadow-md' : 'hover:shadow-md'}`}>
                                 {template.isActive && (
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#003087] text-[#FFD700] px-8 py-2 rounded-b-3xl font-black text-[10px] tracking-[0.3em] uppercase shadow-lg z-20">
-                                        Live for Birthdays
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#003087] text-white px-6 py-1.5 rounded-b-xl font-bold text-xs tracking-wider uppercase shadow-md z-20">
+                                        Active
                                     </div>
                                 )}
-                                <CardHeader className={`${template.isActive ? 'bg-[#003087]/[0.02]' : 'bg-gray-50/50'} border-b border-gray-50 pb-6 pt-12 px-10 relative overflow-hidden shrink-0`}>
-                                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity duration-700 -mr-4 -mt-4">
-                                        <Sparkles className="w-24 h-24 text-[#003087]" />
-                                    </div>
+                                <CardHeader className={`${template.isActive ? 'bg-[#003087]/5' : 'bg-gray-50/50'} border-b border-gray-100 pb-6 pt-12 px-8 relative overflow-hidden shrink-0`}>
                                     <div className="flex items-center justify-between relative z-10">
-                                        <div className="flex items-center gap-5">
-                                            <div className={`p-4 rounded-3xl shadow-xl shadow-black/[0.03] group-hover:scale-110 transition-transform duration-500 ${template.isActive ? 'bg-[#003087] text-white' : 'bg-white text-[#003087]'}`}>
-                                                <Mail className="w-7 h-7" />
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-3 rounded-xl shadow-sm ${template.isActive ? 'bg-[#003087] text-white' : 'bg-white text-[#003087] border border-gray-200'}`}>
+                                                <Mail className="w-6 h-6" />
                                             </div>
                                             <div>
                                                 <CardTitle className="text-2xl font-black text-[#003087] tracking-tight line-clamp-1">{template.name}</CardTitle>
@@ -509,16 +498,13 @@ export default function TemplatesPage() {
                 )}
 
                 <div className="mt-20">
-                    <Card className="border-0 shadow-2xl rounded-[4rem] bg-gradient-to-br from-[#003087] to-[#001540] p-1 overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-white/5 rounded-full -mr-80 -mt-80 blur-[100px] group-hover:scale-110 transition-transform" style={{ transitionDuration: '3000ms' }} />
-                        <div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-[#FFD700]/5 rounded-full -ml-60 -mb-60 blur-[80px]" />
-
-                        <CardContent className="p-12 sm:p-20 relative z-10 flex flex-col lg:flex-row items-center gap-16">
-                            <div className="bg-white/10 p-10 rounded-[3rem] backdrop-blur-xl border border-white/10 shadow-3xl shrink-0 group-hover:rotate-6 transition-transform duration-700">
-                                <Sparkles className="w-20 h-20 text-[#FFD700]" />
+                    <Card className="border border-[#003087]/20 shadow-xl rounded-2xl bg-[#003087] p-1 overflow-hidden group">
+                        <CardContent className="p-10 sm:p-14 relative z-10 flex flex-col lg:flex-row items-center gap-10">
+                            <div className="bg-white/10 p-6 rounded-2xl border border-white/20 shadow-lg shrink-0">
+                                <Mail className="w-16 h-16 text-white" />
                             </div>
                             <div className="text-center lg:text-left">
-                                <h3 className="text-4xl sm:text-5xl font-black text-white mb-6 tracking-tight">Email Design Redefined.</h3>
+                                <h3 className="text-3xl sm:text-4xl font-bold text-white mb-4">Email Communications</h3>
                                 <p className="text-blue-100/80 font-bold text-lg leading-relaxed max-w-3xl">
                                     Welcome to the new era of UPSA communications. Our advanced engine now supports high-definition images,
                                     complex typography, and AI-driven content generation.

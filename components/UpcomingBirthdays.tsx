@@ -55,7 +55,7 @@ function UpcomingBirthdays() {
             {tab.label}
           </button>
         ))}
-        <span className="ml-auto text-[10px] sm:text-xs bg-blue-50 text-[#003087] px-2 py-1 rounded-full font-bold">
+        <span className="ml-auto text-[10px] sm:text-xs bg-blue-50 text-[#003087] px-2 py-1 rounded font-bold">
           {birthdays.length} {birthdays.length === 1 ? 'person' : 'people'}
         </span>
       </div>
@@ -71,13 +71,13 @@ function UpcomingBirthdays() {
           {paginatedBirthdays.map((person: any) => (
             <div key={person.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 sm:p-4 rounded-xl bg-gray-50/50 border border-transparent hover:border-gray-100 transition-colors gap-3 sm:gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#003087] flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-[#003087] flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm">
                   {person.otherNames?.charAt(0) || '?'}
                 </div>
                 <div className="min-w-0">
                   <div className="font-bold text-[#003087] text-sm sm:text-base truncate">{person.otherNames} {person.surname}</div>
                   <div className="flex flex-wrap gap-1.5 mt-0.5 items-center">
-                    <div className={`inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
+                    <div className={`inline-block px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold ${(person.role || '').toUpperCase() === 'STUDENT' ? 'bg-[#FFD700] text-[#003087]' : 'bg-[#003087] text-white'}`}>
                       {person.role}
                     </div>
                     {person.rank && (
@@ -91,21 +91,21 @@ function UpcomingBirthdays() {
               <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto mt-1 sm:mt-0 pt-3 sm:pt-0 border-t border-gray-100 sm:border-t-0 bg-white sm:bg-transparent p-2 sm:p-0 rounded-lg sm:rounded-none">
                 <div className="flex items-center gap-2 mb-1">
                   {person.emailStatus === 'sent' ? (
-                    <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full text-[9px] font-bold border border-green-100 uppercase tracking-tighter">
+                    <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded text-[9px] font-bold border border-green-100 uppercase tracking-tighter">
                       <CheckCircle2 className="w-2.5 h-2.5" /> Sent
                     </div>
                   ) : person.emailStatus === 'failed' ? (
-                    <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-0.5 rounded-full text-[9px] font-bold border border-red-100 uppercase tracking-tighter">
+                    <div className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-0.5 rounded text-[9px] font-bold border border-red-100 uppercase tracking-tighter">
                       <XCircle className="w-2.5 h-2.5" /> Failed
                     </div>
                   ) : activeTab === 'today' ? (
-                    <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-[9px] font-bold border border-blue-100 uppercase tracking-tighter">
+                    <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-[9px] font-bold border border-blue-100 uppercase tracking-tighter">
                       <Clock className="w-2.5 h-2.5" /> Scheduled
                     </div>
                   ) : null}
                   <div className="text-[#003087] font-black text-sm sm:text-base">{getMonthName(person.birthMonth)} {person.birthDay}</div>
                 </div>
-                <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'today' ? 'text-blue-600 bg-blue-50' :
+                <div className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded ${activeTab === 'today' ? 'text-blue-600 bg-blue-50' :
                   activeTab === 'tomorrow' ? 'text-green-600 bg-green-50' :
                     'text-orange-600 bg-orange-50'
                   }`}>
