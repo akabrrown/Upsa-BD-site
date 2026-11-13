@@ -2,6 +2,65 @@ import Papa from 'papaparse'
 import * as XLSX from 'xlsx'
 import { formatFullDate, parseFlexibleDate } from './utils'
 
+export function downloadSampleTemplate(type: 'csv' | 'xlsx') {
+  const sampleData = [
+    {
+      'Surname': 'Mensah',
+      'Other Names': 'Kwame Emmanuel',
+      'Email': 'k.mensah@upsamail.edu.gh',
+      'Role': 'STAFF',
+      'Rank': 'Senior Lecturer',
+      'Date of Birth': '15-04-1985',
+      'Gender': 'MALE'
+    },
+    {
+      'Surname': 'Osei',
+      'Other Names': 'Akosua Serwaa',
+      'Email': 'a.osei@upsamail.edu.gh',
+      'Role': 'STUDENT',
+      'Rank': 'Level 300',
+      'Date of Birth': '22-09-2002',
+      'Gender': 'FEMALE'
+    },
+    {
+      'Surname': 'Boateng',
+      'Other Names': 'Kofi Daniel',
+      'Email': 'k.boateng@upsamail.edu.gh',
+      'Role': 'STUDENT',
+      'Rank': 'Level 100',
+      'Date of Birth': '05-11-2004',
+      'Gender': 'MALE'
+    }
+  ]
+
+  if (type === 'csv') {
+    const csv = Papa.unparse(sampleData)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'upsa_bulk_import_sample.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } else {
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.json_to_sheet(sampleData)
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'People')
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+    const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'upsa_bulk_import_sample.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+}
+
 export function exportPeopleToCSV(people: any[]) {
   const data = people.map(person => {
     const formattedDob = formatFullDate(person.birthDay, person.birthMonth, person.birthYear)
@@ -111,94 +170,100 @@ export function parsePeopleFromCSV(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: 'greedy',
       transformHeader: (header) => header.trim().toLowerCase().replace(/[\s_]/g, ''),
       complete: (results: Papa.ParseResult<any>) => {
-        if (results.errors.length > 0) {
+        if (results.errors.length > 0 && (!results.data || results.data.length === 0)) {
           reject(new Error('CSV parsing errors: ' + results.errors.map(e => e.message).join(', ')))
-        } else {
-          const data = results.data.map((row: any) => {
-            let surname = row.surname || row.lastname || ''
-            let otherNames = row.othernames || row.firstname || ''
-            const gender = (row.gender || 'UNKNOWN').toString().toUpperCase()
-            const email = row.email || row.emailaddress || ''
+          return
+        }
 
-            // Fallback for single 'name' column
-            if ((!surname || !otherNames) && (row.name || row.fullname)) {
-              const fullName = (row.name || row.fullname).trim()
-              const parts = fullName.split(' ')
-              if (parts.length > 1) {
-                surname = parts[parts.length - 1]
-                otherNames = parts.slice(0, -1).join(' ')
-              } else {
-                surname = fullName
-                otherNames = 'N/A' // placeholder if only one name
-              }
+        const data = results.data.map((row: any) => {
+          let surname = row.surname || row.lastname || row.familyname || ''
+          let otherNames = row.othernames || row.firstname || row.givenname || row.middlename || ''
+          const email = (row.email || row.emailaddress || row.mail || row.officialemail || '').toString().trim().toLowerCase()
+
+          // Fallback for single 'name' column
+          if ((!surname || !otherNames) && (row.name || row.fullname || row.fullnames || row.names || row.studentname || row.staffname)) {
+            const fullName = (row.name || row.fullname || row.fullnames || row.names || row.studentname || row.staffname || '').toString().trim()
+            const parts = fullName.split(/\s+/)
+            if (parts.length > 1) {
+              surname = parts[parts.length - 1]
+              otherNames = parts.slice(0, -1).join(' ')
+            } else if (fullName) {
+              surname = fullName
+              otherNames = fullName
             }
+          }
 
-            let role = 'STUDENT'
-            let rank = row.rank || ''
+          const rawGender = (row.gender || row.sex || 'OTHER').toString().trim().toUpperCase()
+          const gender = ['MALE', 'FEMALE', 'OTHER'].includes(rawGender) 
+            ? rawGender 
+            : rawGender.startsWith('M') ? 'MALE' : rawGender.startsWith('F') ? 'FEMALE' : 'OTHER'
 
-            if (row.role) {
-              const roleInput = row.role.toString().toUpperCase().trim()
-              if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
-                role = roleInput
-              } else {
-                role = 'STAFF'
-                rank = roleInput
-              }
-            } else if (row.rolerank) {
-              const roleInput = row.rolerank.toString().toUpperCase().trim()
-              if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
-                role = roleInput
-              } else {
-                role = 'STAFF'
-                rank = roleInput
-              }
-            } else if (row.type) {
-              const typeInput = row.type.toString().toUpperCase().trim()
-              if (typeInput === 'STAFF' || typeInput === 'STUDENT') {
-                role = typeInput
-              } else {
-                role = 'STAFF'
-                rank = typeInput
-              }
-            }
+          let role = 'STUDENT'
+          let rank = (row.rank || row.rankposition || row.indexnumber || row.index || row.level || '').toString().trim()
 
-            let birthMonth: number | undefined
-            let birthDay: number | undefined
-            let birthYear: number | undefined
+          const roleInput = (row.role || row.rolerank || row.type || row.category || row.designation || '').toString().toUpperCase().trim()
+          if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
+            role = roleInput
+          } else if (roleInput) {
+            role = 'STAFF'
+            if (!rank) rank = roleInput
+          }
 
-            // Parse Date of Birth (expected DD-MM-YYYY or similar string)
-            const dobString = row.dateofbirth || row.dob || row.birthdate || ''
+          let birthMonth: number | undefined
+          let birthDay: number | undefined
+          let birthYear: number | undefined
 
-            const parsedFlexible = parseFlexibleDate(dobString)
+          // 1. Try full birthdate column first
+          const dobRaw = row.dateofbirth || row.dob || row.birthdate || row.birthday || row.bday || row.date || row.birth || ''
+          if (dobRaw) {
+            const parsedFlexible = parseFlexibleDate(dobRaw)
             if (parsedFlexible) {
               birthDay = parsedFlexible.day
               birthMonth = parsedFlexible.month
               birthYear = parsedFlexible.year
             }
+          }
 
-            // Fallback for separated month/day if Date of Birth parsing fails or wasn't provided
-            if (!birthMonth || !birthDay || isNaN(birthMonth) || isNaN(birthDay)) {
-              birthMonth = parseInt(row.birthmonth || row.month)
-              birthDay = parseInt(row.birthday || row.day)
-            }
+          // 2. Fallback to separate month and day columns
+          if (!birthMonth || !birthDay || isNaN(birthMonth) || isNaN(birthDay)) {
+            const rawMonth = row.birthmonth || row.month || row.bmonth
+            const rawDay = row.birthday || row.day || row.bday
+            const rawYear = row.birthyear || row.year || row.byear
 
-            return {
-              surname: surname.trim(),
-              otherNames: otherNames.trim(),
-              gender: ['MALE', 'FEMALE', 'OTHER'].includes(gender) ? gender : 'OTHER',
-              email: email.trim(),
-              role: role,
-              rank: rank.trim(),
-              birthMonth,
-              birthDay,
-              birthYear,
+            if (rawMonth && !isNaN(parseInt(rawMonth, 10))) {
+              birthMonth = parseInt(rawMonth, 10)
             }
-          }).filter((person: any) => person.surname && person.email && !isNaN(person.birthMonth) && !isNaN(person.birthDay))
-          resolve(data)
-        }
+            if (rawDay && !isNaN(parseInt(rawDay, 10))) {
+              birthDay = parseInt(rawDay, 10)
+            }
+            if (rawYear && !isNaN(parseInt(rawYear, 10))) {
+              birthYear = parseInt(rawYear, 10)
+            }
+          }
+
+          return {
+            surname: surname.toString().trim(),
+            otherNames: otherNames.toString().trim() || 'N/A',
+            gender,
+            email,
+            role,
+            rank,
+            birthMonth,
+            birthDay,
+            birthYear: birthYear || null,
+          }
+        }).filter((person: any) =>
+          person.surname &&
+          person.email &&
+          person.email.includes('@') &&
+          typeof person.birthMonth === 'number' && !isNaN(person.birthMonth) && person.birthMonth >= 1 && person.birthMonth <= 12 &&
+          typeof person.birthDay === 'number' && !isNaN(person.birthDay) && person.birthDay >= 1 && person.birthDay <= 31
+        )
+
+        resolve(data)
       },
       error: (error: Error) => reject(error),
     })
@@ -215,9 +280,8 @@ export function parsePeopleFromExcel(file: File): Promise<any[]> {
         const json: any[] = []
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName]
-          const sheetData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 0 })
+          const sheetData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 0, defval: '' })
           
-          // Infer role from sheet name if not explicitly provided in the row
           const sheetRole = sheetName.toUpperCase().includes('STAFF') ? 'STAFF' : 
                            sheetName.toUpperCase().includes('STUDENT') ? 'STUDENT' : null
 
@@ -230,36 +294,61 @@ export function parsePeopleFromExcel(file: File): Promise<any[]> {
         })
 
         const people = json.map((row: any) => {
-          // Normalize keys: trim, lowercase, remove non-alphanumeric characters
           const normalizedRow: any = {}
           Object.keys(row).forEach(key => {
             const normalizedKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
             normalizedRow[normalizedKey] = row[key]
           })
 
+          let surname = normalizedRow.surname || normalizedRow.lastname || normalizedRow.familyname || ''
+          let otherNames = normalizedRow.othernames || normalizedRow.firstname || normalizedRow.givenname || normalizedRow.middlename || ''
+          const email = (normalizedRow.email || normalizedRow.emailaddress || normalizedRow.mail || normalizedRow.officialemail || '').toString().trim().toLowerCase()
+
+          // Fallback for single 'name' column
+          if ((!surname || !otherNames) && (normalizedRow.name || normalizedRow.fullname || normalizedRow.fullnames || normalizedRow.names || normalizedRow.studentname || normalizedRow.staffname)) {
+            const fullName = (normalizedRow.name || normalizedRow.fullname || normalizedRow.fullnames || normalizedRow.names || normalizedRow.studentname || normalizedRow.staffname || '').toString().trim()
+            const parts = fullName.split(/\s+/)
+            if (parts.length > 1) {
+              surname = parts[parts.length - 1]
+              otherNames = parts.slice(0, -1).join(' ')
+            } else if (fullName) {
+              surname = fullName
+              otherNames = fullName
+            }
+          }
+
+          const rawGender = (normalizedRow.gender || normalizedRow.sex || 'OTHER').toString().trim().toUpperCase()
+          const gender = ['MALE', 'FEMALE', 'OTHER'].includes(rawGender) 
+            ? rawGender 
+            : rawGender.startsWith('M') ? 'MALE' : rawGender.startsWith('F') ? 'FEMALE' : 'OTHER'
+
+          let role = normalizedRow.sheetrole || 'STUDENT'
+          let rank = (normalizedRow.rank || normalizedRow.rankposition || normalizedRow.indexnumber || normalizedRow.index || normalizedRow.level || '').toString().trim()
+
+          const roleInput = (normalizedRow.role || normalizedRow.rolerank || normalizedRow.type || normalizedRow.category || normalizedRow.designation || '').toString().toUpperCase().trim()
+          if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
+            role = roleInput
+          } else if (roleInput) {
+            role = 'STAFF'
+            if (!rank) rank = roleInput
+          }
+
           let birthMonth: number | undefined
           let birthDay: number | undefined
           let birthYear: number | undefined
 
-          // Check for separate month/day columns
-          birthMonth = parseInt(normalizedRow.birthmonth || normalizedRow.month)
-          birthDay = parseInt(normalizedRow.birthday || normalizedRow.day)
+          // 1. Try full birthdate column first (checking 'dateofbirth', 'dob', 'birthdate', 'birthday', 'bday', 'date', 'birth')
+          const birthdateVal = normalizedRow.dateofbirth ?? normalizedRow.dob ?? normalizedRow.birthdate ?? normalizedRow.birthday ?? normalizedRow.bday ?? normalizedRow.date ?? normalizedRow.birth ?? null
 
-          // If not found, check for birthdate column or other date variations
-          if (isNaN(birthMonth) || isNaN(birthDay)) {
-            const birthdate = normalizedRow.dateofbirth || normalizedRow.dob || normalizedRow.birthdate || ''
-
-            // If it's an actual Date object (parsed by XLSX cellDates: true)
-            if (birthdate instanceof Date) {
-              if (!isNaN(birthdate.getTime())) {
-                birthMonth = birthdate.getUTCMonth() + 1
-                birthDay = birthdate.getUTCDate()
-                birthYear = birthdate.getUTCFullYear()
+          if (birthdateVal !== null && birthdateVal !== '') {
+            if (birthdateVal instanceof Date) {
+              if (!isNaN(birthdateVal.getTime())) {
+                birthMonth = birthdateVal.getUTCMonth() + 1
+                birthDay = birthdateVal.getUTCDate()
+                birthYear = birthdateVal.getUTCFullYear()
               }
-            }
-            // If it's a string like DD-MM-YYYY, or January 1 2000
-            else if (typeof birthdate === 'string') {
-              const parsedFlexible = parseFlexibleDate(birthdate)
+            } else {
+              const parsedFlexible = parseFlexibleDate(birthdateVal)
               if (parsedFlexible) {
                 birthDay = parsedFlexible.day
                 birthMonth = parsedFlexible.month
@@ -268,71 +357,40 @@ export function parsePeopleFromExcel(file: File): Promise<any[]> {
             }
           }
 
-          let surname = normalizedRow.surname || normalizedRow.lastname || ''
-          let otherNames = normalizedRow.othernames || normalizedRow.firstname || ''
-          const gender = (normalizedRow.gender || 'UNKNOWN').toString().toUpperCase()
-          const email = normalizedRow.email || normalizedRow.emailaddress || ''
+          // 2. Fallback to separate month and day columns
+          if (!birthMonth || !birthDay || isNaN(birthMonth) || isNaN(birthDay)) {
+            const rawMonth = normalizedRow.birthmonth || normalizedRow.month || normalizedRow.bmonth
+            const rawDay = normalizedRow.day || normalizedRow.bday || (typeof normalizedRow.birthday === 'number' ? normalizedRow.birthday : undefined)
+            const rawYear = normalizedRow.birthyear || normalizedRow.year || normalizedRow.byear
 
-          // Fallback for single 'name' column (handles: Name, Full Name, Full Names, Names, Student Name, etc.)
-          if ((!surname || !otherNames) && (normalizedRow.name || normalizedRow.fullname || normalizedRow.fullnames || normalizedRow.names || normalizedRow.studentname || normalizedRow.staffname)) {
-            const fullName = (normalizedRow.name || normalizedRow.fullname || normalizedRow.fullnames || normalizedRow.names || normalizedRow.studentname || normalizedRow.staffname).toString().trim()
-            const parts = fullName.split(/\s+/)
-            if (parts.length > 1) {
-              surname = parts[parts.length - 1]
-              otherNames = parts.slice(0, -1).join(' ')
-            } else {
-              surname = fullName
-              otherNames = fullName
+            if (rawMonth && !isNaN(parseInt(rawMonth, 10))) {
+              birthMonth = parseInt(rawMonth, 10)
+            }
+            if (rawDay && !isNaN(parseInt(rawDay, 10))) {
+              birthDay = parseInt(rawDay, 10)
+            }
+            if (rawYear && !isNaN(parseInt(rawYear, 10))) {
+              birthYear = parseInt(rawYear, 10)
             }
           }
-
-          let role = normalizedRow.sheetrole // inferred from sheet name earlier
-          let rank = normalizedRow.rank || normalizedRow.rankposition || ''
-
-          if (normalizedRow.role) {
-            const roleInput = normalizedRow.role.toString().toUpperCase().trim()
-            if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
-              role = roleInput
-            } else {
-              role = 'STAFF'
-              rank = roleInput
-            }
-          } else if (normalizedRow.rolerank) {
-            const roleInput = normalizedRow.rolerank.toString().toUpperCase().trim()
-            if (roleInput === 'STAFF' || roleInput === 'STUDENT') {
-              role = roleInput
-            } else {
-              role = 'STAFF'
-              rank = roleInput
-            }
-          } else if (normalizedRow.type) {
-            const typeInput = normalizedRow.type.toString().toUpperCase().trim()
-            if (typeInput === 'STAFF' || typeInput === 'STUDENT') {
-              role = typeInput
-            } else {
-              role = 'STAFF'
-              rank = typeInput
-            }
-          }
-
-          if (!role) role = 'STUDENT' // Final fallback
 
           return {
             surname: surname?.toString().trim(),
-            otherNames: otherNames?.toString().trim() || 'N/A', // ensure some value exists
-            gender: ['MALE', 'FEMALE', 'OTHER'].includes(gender) ? gender : 'OTHER',
-            email: email?.toString().trim().toLowerCase(), // normalize to lowercase for consistency
-            role: role,
-            rank: rank?.toString().trim() || '',
+            otherNames: otherNames?.toString().trim() || 'N/A',
+            gender,
+            email,
+            role,
+            rank,
             birthMonth,
             birthDay,
-            birthYear,
+            birthYear: birthYear || null,
           }
         }).filter(person =>
           person.surname &&
           person.email &&
-          !isNaN(person.birthMonth!) &&
-          !isNaN(person.birthDay!)
+          person.email.includes('@') &&
+          typeof person.birthMonth === 'number' && !isNaN(person.birthMonth) && person.birthMonth >= 1 && person.birthMonth <= 12 &&
+          typeof person.birthDay === 'number' && !isNaN(person.birthDay) && person.birthDay >= 1 && person.birthDay <= 31
         )
 
         resolve(people)

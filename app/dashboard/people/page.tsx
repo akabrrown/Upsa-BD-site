@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { exportPeopleToExcel, parsePeopleFromCSV, parsePeopleFromExcel } from '@/lib/bulk'
+import { exportPeopleToExcel, parsePeopleFromCSV, parsePeopleFromExcel, downloadSampleTemplate } from '@/lib/bulk'
 import AddPersonForm from '@/components/AddPersonForm'
+import { toast } from 'sonner'
 
 function PeoplePage() {
   const [people, setPeople] = useState<any[]>([])
@@ -29,6 +30,7 @@ function PeoplePage() {
   const [importFile, setImportFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
   const [isDeletingAll, setIsDeletingAll] = useState(false)
@@ -52,11 +54,12 @@ function PeoplePage() {
       })
 
       if (response.ok) {
-        setPeople(people.filter(p => !selectedIds.has(p.id)))
+        const deletedCount = selectedIds.size
         setSelectedIds(new Set())
-        alert(`Successfully deleted ${selectedIds.size} people.`)
+        fetchPeople()
+        toast.success(`Successfully deleted ${deletedCount} people.`)
       } else {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({ error: 'Delete failed' }))
         alert('Failed to delete: ' + (error.error || 'Unknown error'))
       }
     } catch (error: any) {
@@ -148,10 +151,22 @@ function PeoplePage() {
 
   const confirmDelete = async () => {
     if (!deleteDialog.person) return
-    await fetch(`/api/people/${deleteDialog.person!.id}`, { method: 'DELETE' })
-    router.refresh()
-    setPeople(people.filter(p => p.id !== deleteDialog.person!.id))
-    setDeleteDialog({ open: false, person: null })
+    try {
+      const res = await fetch(`/api/people/${deleteDialog.person.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        router.refresh()
+        setPeople(people.filter(p => p.id !== deleteDialog.person!.id))
+        setTotal(prev => Math.max(0, prev - 1))
+        toast.success('Person deleted successfully')
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Delete failed' }))
+        alert(`Delete failed: ${errorData.error || 'Server error'}`)
+      }
+    } catch (err: any) {
+      alert(`Delete error: ${err.message}`)
+    } finally {
+      setDeleteDialog({ open: false, person: null })
+    }
   }
 
   const handleExportFull = async (mode: 'STUDENT' | 'STAFF' | 'BOTH') => {
@@ -172,31 +187,48 @@ function PeoplePage() {
   }
 
   const handleAdd = async (data: any) => {
-    const response = await fetch('/api/people', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      router.refresh()
-      const newPerson = await response.json()
-      setPeople([...people, newPerson])
-      setAddPersonDialog(false)
+    try {
+      const response = await fetch('/api/people', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (response.ok) {
+        router.refresh()
+        const newPerson = await response.json()
+        setPeople([newPerson, ...people])
+        setTotal(prev => prev + 1)
+        setAddPersonDialog(false)
+        toast.success('Person added successfully')
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to add person' }))
+        alert(`Failed to add person: ${errorData.error || 'Server error'}`)
+      }
+    } catch (err: any) {
+      alert(`Network error: ${err.message}`)
     }
   }
 
   const handleUpdate = async (data: any) => {
     if (!editPerson) return
-    const response = await fetch(`/api/people/${editPerson.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    if (response.ok) {
-      router.refresh()
-      const updated = await response.json()
-      setPeople(people.map(p => p.id === editPerson.id ? updated : p))
-      setEditPerson(null)
+    try {
+      const response = await fetch(`/api/people/${editPerson.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (response.ok) {
+        router.refresh()
+        const updated = await response.json()
+        setPeople(people.map(p => p.id === editPerson.id ? updated : p))
+        setEditPerson(null)
+        toast.success('Person updated successfully')
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update person' }))
+        alert(`Failed to update person: ${errorData.error || 'Server error'}`)
+      }
+    } catch (err: any) {
+      alert(`Network error: ${err.message}`)
     }
   }
 
@@ -335,7 +367,7 @@ function PeoplePage() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={importDialog} onOpenChange={setImportDialog}>
+            <Dialog open={importDialog} onOpenChange={(open) => { if (!isImporting) setImportDialog(open) }}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="h-11 px-6 rounded-xl font-bold border-gray-200 hover:bg-white hover:border-[#003087] hover:text-[#003087] transition-all">
                   Import
@@ -349,26 +381,61 @@ function PeoplePage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 pt-4">
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 sm:p-8 text-center bg-gray-50/50">
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) setImportFile(file);
+                    }}
+                    className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-all bg-gray-50/50 ${
+                      isDragging ? 'border-[#003087] bg-blue-50/50 scale-[1.01]' : 'border-gray-200 hover:border-[#003087]'
+                    }`}
+                  >
                     <input
                       type="file"
                       id="people-upload"
                       accept=".csv,.xlsx,.xls"
+                      onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                       onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                       className="hidden"
                     />
                     <label htmlFor="people-upload" className="cursor-pointer block">
                       <div className="text-[#003087] font-bold text-base sm:text-lg px-2 break-all">
-                        {importFile ? importFile.name : 'Choose File'}
+                        {importFile ? importFile.name : 'Choose File or Drag & Drop'}
                       </div>
-                      <p className="text-[10px] sm:text-xs text-gray-400 mt-2">Required columns: Surname, Other Names, Email, Role, Date of Birth</p>
+                      <p className="text-[10px] sm:text-xs text-gray-400 mt-2">Required columns: Surname, Other Names, Email, Date of Birth (DD-MM-YYYY)</p>
                     </label>
                   </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+                    <span className="font-medium">Need a ready template?</span>
+                    <div className="flex gap-2 font-bold">
+                      <button
+                        type="button"
+                        onClick={() => downloadSampleTemplate('csv')}
+                        className="text-[#003087] hover:underline"
+                      >
+                        Sample CSV
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => downloadSampleTemplate('xlsx')}
+                        className="text-[#003087] hover:underline"
+                      >
+                        Sample Excel
+                      </button>
+                    </div>
+                  </div>
+
                   <Button onClick={handleImport} disabled={!importFile || isImporting} className="w-full bg-[#003087] text-white font-bold h-12 sm:h-14 rounded-xl text-base relative overflow-hidden">
                     {isImporting ? (
                       <>
                         <div className="absolute inset-0 bg-[#002266] transition-all duration-300" style={{ width: `${importProgress}%` }}></div>
-                        <span className="relative z-10 flex items-center gap-2">
+                        <span className="relative z-10 flex items-center justify-center gap-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           Importing... {Math.min(importProgress, 100)}%
                         </span>
@@ -436,21 +503,26 @@ function PeoplePage() {
                 Export Excel
               </Button>
 
-              <Dialog open={importDialog} onOpenChange={setImportDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-start h-12 rounded-lg font-bold hover:bg-gray-50 text-[#003087]" onClick={() => document.getElementById('mobile-actions-menu')?.classList.add('hidden')}>
-                    Import Bulk Data
-                  </Button>
-                </DialogTrigger>
-              </Dialog>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setImportDialog(true)
+                  setIsMobileMenuOpen(false)
+                }}
+                className="w-full justify-start h-12 rounded-lg font-bold hover:bg-gray-50 text-[#003087]"
+              >
+                Import Bulk Data
+              </Button>
 
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="w-full justify-start h-12 rounded-lg font-bold bg-[#FFD700] hover:bg-[#e6c200] text-[#003087] shadow-sm mt-1" onClick={() => document.getElementById('mobile-actions-menu')?.classList.add('hidden')}>
-                    Add New Person
-                  </Button>
-                </DialogTrigger>
-              </Dialog>
+              <Button
+                onClick={() => {
+                  setAddPersonDialog(true)
+                  setIsMobileMenuOpen(false)
+                }}
+                className="w-full justify-start h-12 rounded-lg font-bold bg-[#FFD700] hover:bg-[#e6c200] text-[#003087] shadow-sm mt-1"
+              >
+                Add New Person
+              </Button>
 
               <Button
                 variant="ghost"

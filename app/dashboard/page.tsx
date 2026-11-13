@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Users, Calendar, Gift, Upload, Plus, FileText, Send, MessageSquare, AlertCircle, Eye } from 'lucide-react'
 import AddPersonForm from '@/components/AddPersonForm'
-import { parsePeopleFromCSV, parsePeopleFromExcel } from '@/lib/bulk'
+import { parsePeopleFromCSV, parsePeopleFromExcel, downloadSampleTemplate } from '@/lib/bulk'
 import { toast } from 'sonner'
 
 function Dashboard() {
@@ -33,6 +33,9 @@ function Dashboard() {
   const [importDialog, setImportDialog] = useState(false)
   const [addPersonDialog, setAddPersonDialog] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
   const router = useRouter()
 
   const fetchData = async () => {
@@ -82,36 +85,73 @@ function Dashboard() {
   }
 
   const handleImport = async () => {
-    if (!importFile) return
+    if (!importFile || isImporting) return
+    setIsImporting(true)
+    setImportProgress(0)
+
     try {
       const isExcel = importFile.name.endsWith('.xlsx') || importFile.name.endsWith('.xls')
       const parsedPeople = isExcel
         ? await parsePeopleFromExcel(importFile)
         : await parsePeopleFromCSV(importFile)
 
-      if (parsedPeople.length === 0) {
-        toast.error('No valid people data found in the file.')
+      if (!parsedPeople || parsedPeople.length === 0) {
+        toast.error('No valid records found. Ensure columns contain Surname, Other Names, Email, and Date of Birth (DD-MM-YYYY).')
+        setIsImporting(false)
         return
       }
 
-      const response = await fetch('/api/people', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsedPeople),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(`Imported ${result.count} people successfully`)
+      const CHUNK_SIZE = 250
+      let totalImported = 0
+      let totalSkipped = 0
+      let hasError = false
+
+      for (let i = 0; i < parsedPeople.length; i += CHUNK_SIZE) {
+        const chunk = parsedPeople.slice(i, i + CHUNK_SIZE)
+
+        const response = await fetch('/api/people', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chunk),
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          totalImported += (result.count || 0)
+          totalSkipped += (result.skipped || 0)
+          setImportProgress(Math.round(((i + chunk.length) / parsedPeople.length) * 100))
+        } else {
+          let errorMsg = `Server error ${response.status}`
+          try {
+            const errJson = await response.json()
+            errorMsg = errJson.error || errorMsg
+          } catch {
+            // fallback text
+          }
+          toast.error(`Import stopped around row ${i + 1}: ${errorMsg}`)
+          hasError = true
+          break
+        }
+      }
+
+      if (totalImported > 0 || totalSkipped > 0) {
+        if (totalImported === 0 && totalSkipped > 0) {
+          toast.info(`Notice: All ${totalSkipped} records in file already exist in database.`)
+        } else {
+          toast.success(`Import complete! ${totalImported} added, ${totalSkipped} skipped (duplicates).`)
+        }
         router.refresh()
         fetchData()
-        setImportDialog(false)
-        setImportFile(null)
-      } else {
-        const error = await response.json()
-        toast.error('Import failed: ' + error.error)
+        if (!hasError) {
+          setImportDialog(false)
+          setImportFile(null)
+        }
       }
     } catch (error: any) {
-      toast.error('Import failed: ' + error.message)
+      toast.error('Import failed: ' + (error?.message || 'Unknown error'))
+    } finally {
+      setIsImporting(false)
+      setImportProgress(0)
     }
   }
   const handleSendToday = async () => {
@@ -179,7 +219,7 @@ function Dashboard() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={importDialog} onOpenChange={setImportDialog}>
+            <Dialog open={importDialog} onOpenChange={(open) => { if (!isImporting) setImportDialog(open) }}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full sm:w-auto flex gap-2 border-gray-200 hover:bg-white hover:border-[#003087] hover:text-[#003087] transition-all h-12 sm:h-11 px-6 rounded-xl font-bold shadow-sm">
                   <Upload className="h-5 w-5" />
@@ -190,34 +230,84 @@ function Dashboard() {
                 <DialogHeader className="text-left sm:text-center">
                   <DialogTitle className="text-xl sm:text-2xl font-black text-[#003087]">Bulk Import</DialogTitle>
                   <DialogDescription className="font-medium text-gray-500 text-sm sm:text-base">
-                    Upload a CSV or Excel file to add multiple people at once.
+                    Upload a CSV or Excel file to add multiple staff or students at once.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6 pt-4">
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 sm:p-8 text-center hover:border-[#003087] transition-colors bg-gray-50/50">
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) setImportFile(file);
+                    }}
+                    className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-all bg-gray-50/50 ${
+                      isDragging ? 'border-[#003087] bg-blue-50/50 scale-[1.01]' : 'border-gray-200 hover:border-[#003087]'
+                    }`}
+                  >
                     <input
                       type="file"
                       id="file-upload"
                       accept=".csv,.xlsx,.xls"
+                      onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                       onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                       className="hidden"
                     />
                     <label htmlFor="file-upload" className="cursor-pointer block w-full touch-manipulation">
-                      <Upload className="w-8 h-8 sm:w-10 sm:h-10 text-gray-300 mx-auto mb-3" />
+                      <Upload className={`w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-3 transition-colors ${
+                        importFile ? 'text-[#003087]' : 'text-gray-300'
+                      }`} />
                       <div className="text-[#003087] font-bold text-sm sm:text-base px-2 break-all">
                         {importFile ? importFile.name : 'Click to select or drag and drop'}
                       </div>
                       <div className="text-[10px] sm:text-xs text-gray-400 mt-2 font-medium px-4">
-                        Supported files: CSV, Excel (headers: name, email, role)
+                        Required columns: Surname, Other Names, Email, Date of Birth (DD-MM-YYYY)
                       </div>
                     </label>
                   </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+                    <span className="font-medium">Need a ready template?</span>
+                    <div className="flex gap-2 font-bold">
+                      <button
+                        type="button"
+                        onClick={() => downloadSampleTemplate('csv')}
+                        className="text-[#003087] hover:underline"
+                      >
+                        Sample CSV
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => downloadSampleTemplate('xlsx')}
+                        className="text-[#003087] hover:underline"
+                      >
+                        Sample Excel
+                      </button>
+                    </div>
+                  </div>
+
                   <Button
                     onClick={handleImport}
-                    disabled={!importFile}
-                    className="w-full bg-[#003087] text-white font-bold h-12 sm:h-14 rounded-xl shadow-lg hover:bg-blue-900 transition-all disabled:opacity-50 text-base"
+                    disabled={!importFile || isImporting}
+                    className="w-full bg-[#003087] text-white font-bold h-12 sm:h-14 rounded-xl shadow-lg hover:bg-blue-900 transition-all disabled:opacity-50 text-base relative overflow-hidden"
                   >
-                    Start Import
+                    {isImporting ? (
+                      <>
+                        <div
+                          className="absolute inset-0 bg-[#002266] transition-all duration-300"
+                          style={{ width: `${importProgress}%` }}
+                        />
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Importing... {Math.min(importProgress, 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      'Start Import'
+                    )}
                   </Button>
                 </div>
               </DialogContent>

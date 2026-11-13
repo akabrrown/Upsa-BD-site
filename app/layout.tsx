@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ToasterProvider } from '@/components/ToasterProvider'
 
 export const metadata: Metadata = {
   title: 'UPSA Birthday Wishes',
@@ -16,7 +17,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <ToasterProvider />
+      </body>
     </html>
   )
 }
+

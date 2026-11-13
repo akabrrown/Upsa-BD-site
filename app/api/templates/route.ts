@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
             await supabaseAdmin
                 .from('Template')
                 .update({ isActive: false })
+                .neq('id', '00000000-0000-0000-0000-000000000000')
         }
 
         const { data, error } = await supabaseAdmin

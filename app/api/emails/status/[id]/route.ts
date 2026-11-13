@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { supabaseAdmin } from '@/lib/supabase-admin'
+
+export const dynamic = 'force-dynamic'
 
 export async function PATCH(
     req: NextRequest,
@@ -15,17 +17,24 @@ export async function PATCH(
 
         const data: any = { status }
         if (status === 'replied') {
-            data.repliedAt = new Date()
+            data.repliedAt = new Date().toISOString()
         }
 
-        const updatedEmail = await prisma.birthdayEmail.update({
-            where: { id: params.id },
-            data
-        })
+        const { data: updatedEmail, error } = await supabaseAdmin
+            .from('BirthdayEmail')
+            .update(data)
+            .eq('id', params.id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Failed to update email status via Supabase:', error)
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
 
         return NextResponse.json(updatedEmail)
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to update email status:', error)
-        return NextResponse.json({ error: 'Failed to update status' }, { status: 500 })
+        return NextResponse.json({ error: error?.message || 'Failed to update status' }, { status: 500 })
     }
 }
