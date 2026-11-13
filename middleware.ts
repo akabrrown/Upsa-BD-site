@@ -58,8 +58,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Check Admin Email
-    if (user.email !== process.env.ADMIN_EMAIL) {
+    // Check Admin Email — strip surrounding quotes in case the env var was set with them
+    const adminEmail = (process.env.ADMIN_EMAIL || '').replace(/^["']|["']$/g, '').trim()
+    if (user.email !== adminEmail) {
       await supabase.auth.signOut()
       if (isProtectedApiRoute) {
         return NextResponse.json({ error: 'Forbidden. Admin access required.' }, { status: 403 })
